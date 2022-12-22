@@ -1,6 +1,7 @@
 import os
 import subprocess
 import signal
+import sys
 
 if __name__ == "__main__":
 
@@ -27,11 +28,15 @@ if __name__ == "__main__":
     
     except OSError as e:
         print ("Failed to create FIFO: %s" % e)
+        sys.exit()
     else:
         while True:
 
-            fifo = open(path, 'w')
-            fifo.write("hello")
+            with open(path, "w") as fifo:
+                fifo.write("hello")
+
+            #fifo = open(path, 'w')
+            #fifo.write("hello")
             
             #command = subprocess.run(["echo", '"hello"', ">>", "./mypipe"])
             #command = subprocess.run(["sudo ausearch -f mypipe --interpret | tail -4  | grep -oh \"comm=\w*-*\w*\" "], shell=True, capture_output=True)
@@ -43,7 +48,10 @@ if __name__ == "__main__":
             kill_process = input("Do you want to kill the process(y/n)?")
 
             if (kill_process == "y"):
-                os.kill(pid_process, signal.SIGKILL)
+                try:
+                    os.kill(pid_process, signal.SIGKILL)
+                except ProcessLookupError as e:
+                    print ("Failed to kill process: %s" % e)
             else:
                 fifo.close()
             
