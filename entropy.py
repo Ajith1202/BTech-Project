@@ -1,8 +1,11 @@
 import sys
 import math
 import os
+from tabulate import tabulate
+import pandas
 
-def calc_entropy(fname):
+
+def calc_stat(fname):
 
     file= open(fname,"r+b")
     count= dict()
@@ -19,25 +22,93 @@ def calc_entropy(fname):
     for num in count.values():
         p= num/c
         entropy-= p*math.log(p,2)
+    
+    if c==0:
+        return ["null", "null"]
+    Ei= c/256
+    X= 0
+    k=0
+    for num in count.values():
+        k+=1
+        X+= (num- Ei)**2
+
+    X= X+ (256-k)* (Ei**2)
+    chisqr= X/Ei
 
     file.close()
-    return entropy
+    return [entropy,chisqr]
+
+
+def beautify_print(chisq, file_entropy):
+
+    added= dict()
+    for file in chisq:
+        added[file]= False
+    rows= []
+    normal= []
+    encrypted= []
+    for file in chisq:
+        if not added[file]:
+            if file[-4:]== ".gpg":
+                unencr=  file[:-4]
+                if unencr in chisq:
+                    normal.append(unencr)
+                    encrypted.append(file)
+                    added[file]= True
+                    added[unencr]= True
+            else:
+                temp= file+ ".gpg"
+                if temp in chisq:
+                    normal.append(file)
+                    encrypted.append(temp)
+                    added[file]= True
+                    added[temp]= True
+    for rfile in chisq:
+        if not added[file]:
+            if rfile[-4:]== ".gpg":
+                encrypted.append(rfile)
+                added[rfile]= True
+            else:
+                normal.append(rfile)
+                added[rfile]= True
+    i=0
+    j=0
+    while i < len(normal) or j< len(encrypted):
+        if i < len(normal) and j<len(encrypted):
+            rows.append([normal[i], chisq[normal[i]], file_entropy[normal[i]], encrypted[j],chisq[encrypted[j]], file_entropy[encrypted[j]]])
+            i+=1
+            j+=1
+        elif i<len(normal):
+            rows.append([normal[i], chisq[normal[i]],file_entropy[normal[i]], "","",""])
+            i+=1
+        elif j<len(encrypted):
+            rows.append(["","","", encrypted[j], chisq[encrypted[j]], file_entropy[encrypted[j]]])
+            j+=1
+    headers=["Normal files", "<--Chi-square", "<--Entropy", "Encrypted files", "<--Chi-square", "<--Entropy"]
+    print (tabulate(rows, headers, tablefmt="grid", numalign= "center"))
+
+    # print('---------------------------------------------------------------------------------------------------------------------------')
+    # print()
+    # headers= ["Normal files", "<--Chi-square", "Encrypted files", "<--Chi-square"]
+    # print(pandas.DataFrame(rows, headers))
+
+
+    
 
 
 
 if __name__== "__main__":
 
     file_entropy= dict()
-    for root, dirs, files in os.walk(".", topdown= True):
+    chisq= dict()
+    for root, dirs, files in os.walk("new", topdown= True):
         for name in files:
             fname= os.path.join(root, name)
-            entropy= calc_entropy(fname)
-            file_entropy[fname]= entropy
+            stat= calc_stat(fname)
 
-    for row in file_entropy.items():    
-        print(row)
+            file_entropy[fname]= stat[0]
+            chisq[fname]= stat[1]
+            # print(fname," --", " Entr= ", stat[0], "    Chisq= ", stat[1])
     
-
-
-
-
+    beautify_print(chisq, file_entropy)
+    
