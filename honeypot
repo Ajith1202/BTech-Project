@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import signal
+import sys
+
+if __name__ == "__main__":
+
+    path = "./mypipe.txt"
+    mode = 0o600
+
+    try:
+        if not os.path.exists(os.getcwd() + "/mypipe.txt"):
+            os.mkfifo(path, mode)
+
+        pwd = os.getcwd()
+        count = 1
+
+        for dirpath, dirname, filename in os.walk(pwd):
+            dirname[:] = [d for d in dirname if not (d[0] == '.' or d == pwd)]
+            #print(dirpath)
+            if count > 1:
+                command_str = f'ln -sf "{pwd + "/mypipe.txt"}" "{dirpath + "/mypipe.txt"}"'.format(pwd + "/mypipe.txt", dirpath + "/mypipe.txt")
+                #print(command_str)
+                command = subprocess.run([command_str], shell=True, capture_output=True)
+                #print(command.returncode)
+
+            count += 1
+    
+    except OSError as e:
+        print ("Failed to create FIFO: %s" % e)
+        sys.exit()
+    else:
+        while True:
+
+            with open(path, "w") as fifo:
+                fifo.write("hello")
+
+            #fifo = open(path, 'w')
+            #fifo.write("hello")
+            
+            #command = subprocess.run(["echo", '"hello"', ">>", "./mypipe"])
+            #command = subprocess.run(["sudo ausearch -f mypipe --interpret | tail -4  | grep -oh \"comm=\w*-*\w*\" "], shell=True, capture_output=True)
+            #command = subprocess.run(["sudo ausearch -f mypipe --interpret | tail -4  | grep -oh \"[[:blank:]]pid=\w*\" "], shell=True, capture_output=True)
+            command = subprocess.run(["sudo ausearch -f mypipe -sc openat -sv yes --interpret | tail -4 | grep \"SYSCALL\" | grep -oh \"[[:blank:]]pid=\w*\" "], shell=True, capture_output=True)
+            pid_process = int(command.stdout.decode().split("=")[1].strip("\n"))
+            print(f"The PID of the process accessing the file is: {pid_process}") 
+            
+
+            #try:
+                #os.kill(pid_process, signal.SIGKILL)
+            #except ProcessLookupError as e:
+                #print ("Failed to kill process: %s" % e)
+
+            # Pausing the process
+            #command = subprocess.run([f"kill -STOP {pid_process}"], shell=True)
+            try:
+                os.kill(pid_process, signal.SIGSTOP)
+            except ProcessLookupError as e:
+                print ("Failed to pause process: %s" % e)
+
+            kill_process = input("Do you want to kill the process(y/n)?")
+
+            if (kill_process == "y"):
+                try:
+                    #Resuming the process
+                    #command = subprocess.run([f"kill -CONT {pid_process}"], shell=True)
+                    #try:
+                    #    os.kill(pid_process, signal.SIGCONT)
+                    #except ProcessLookupError as e:
+                    #    print ("Failed to resume process: %s" % e)
+                    os.kill(pid_process, signal.SIGKILL)
+                except ProcessLookupError as e:
+                    print ("Failed to kill process: %s" % e)
+            else:
+                # Resuming the process
+                #command = subprocess.run([f"kill -CONT {pid_process}"], shell=True)
+                try:
+                    os.kill(pid_process, signal.SIGCONT)
+                except ProcessLookupError as e:
+                    print ("Failed to resume process: %s" % e)
+            fifo.close()
+            
+            # delete mypipe
+            if os.path.exists(pwd + "/mypipe.txt"):
+                os.remove(path)
+
+            # create new named pipe with same name so that symlinks are preserved
+            os.mkfifo(path, mode)
+
+
