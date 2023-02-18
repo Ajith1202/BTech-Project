@@ -101,14 +101,92 @@ if __name__== "__main__":
 
     file_entropy= dict()
     chisq= dict()
-    for root, dirs, files in os.walk("new", topdown= True):
+
+    max_enc = float('-inf')
+    min_non_enc = float('inf')
+    count_enc = count_non_enc = 0
+    avg_enc = avg_non_enc = 0
+    median_enc, median_non_enc = [], []
+    wrong_enc = wrong_non_enc = 0
+
+    for root, dirs, files in os.walk(".", topdown= True):
         for name in files:
+            
+            if name[-10:] == "entropy.py":
+                continue
+
             fname= os.path.join(root, name)
             stat= calc_stat(fname)
 
             file_entropy[fname]= stat[0]
             chisq[fname]= stat[1]
+
+            if name[-4:] == ".gpg":
+                if stat[1] > 293.25:
+                    wrong_enc += 1
+                count_enc += 1
+                avg_enc += stat[1]
+                max_enc = max(max_enc, stat[1])
+                median_enc.append(stat[1])
+            else:
+                if stat[1] < 293.25:
+                    wrong_non_enc += 1
+                count_non_enc += 1
+                avg_non_enc += stat[1]
+                min_non_enc = min(min_non_enc, stat[1])
+                median_non_enc.append(stat[1])
             # print(fname," --", " Entr= ", stat[0], "    Chisq= ", stat[1])
     
-    beautify_print(chisq, file_entropy)
+    median_enc.sort()
+    median_non_enc.sort()
+
+    print(count_enc, count_non_enc)
+    count_enc = len(median_enc)
+    count_non_enc = len(median_non_enc)
+
+    if count_enc % 2 == 0:
+        print(count_enc // 2)
+        m1 = median_enc[count_enc // 2]
+        m2 = median_enc[count_enc // 2 - 1]
+        
+        m = (m1 + m2) / 2
+    else:
+        m = median_enc[count_enc // 2]
+
+
+    print(f"Median chi square for Encrypted: {str(m)}")
+
+    if count_non_enc % 2 == 0:
+        m1 = median_non_enc[count_non_enc // 2]
+        m2 = median_non_enc[count_non_enc // 2 - 1]
+        
+        m = (m1 + m2) / 2
+    else:
+        m = median_non_enc[count_non_enc // 2]
+    
+    print(f"Median chi square for Non-Encrypted: {str(m)}")
+    
+    print("--------------------------------------------------------------------")
+
+    print(f"Average chi square for Encrypted: {str(avg_enc / count_enc)}")
+    print(f"Average chi square for Non-Encrypted: {str(avg_non_enc / count_non_enc)}")
+
+    print("--------------------------------------------------------------------")
+
+    print(f"Max chi square for Encrypted: {str(max_enc)}")
+    print(f"Min chi square for Non-Encrypted: {str(min_non_enc)}")
+
+    print("--------------------------------------------------------------------")
+
+    print(f"Total Number of analysed files: {str(count_enc + count_non_enc)}")
+
+    print("--------------------------------------------------------------------")
+
+    print(f"Percentage of wrongly detected Encrypted files: {str(wrong_enc / count_enc * 100) + '%'}")
+    print(f"Percentage of wrongly detected Non-Encrypted files: {str(wrong_non_enc / count_non_enc * 100) + '%'}")
+
+    print("--------------------------------------------------------------------")
+
+    print(f"Percentage of wrongly detected files: {str((wrong_enc + wrong_non_enc) / (count_enc + count_non_enc) * 100) + '%'}")
+    #beautify_print(chisq, file_entropy)
     
