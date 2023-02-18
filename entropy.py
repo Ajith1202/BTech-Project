@@ -122,14 +122,14 @@ if __name__== "__main__":
             chisq[fname]= stat[1]
 
             if name[-4:] == ".gpg":
-                if stat[1] > 293.25:
+                if stat[1] > 310.46:
                     wrong_enc += 1
                 count_enc += 1
                 avg_enc += stat[1]
                 max_enc = max(max_enc, stat[1])
                 median_enc.append(stat[1])
             else:
-                if stat[1] < 293.25:
+                if stat[1] < 310.46:
                     wrong_non_enc += 1
                 count_non_enc += 1
                 avg_non_enc += stat[1]
