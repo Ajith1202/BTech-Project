@@ -4,6 +4,8 @@ import os
 import subprocess
 import signal
 import sys
+import socket
+
 
 if __name__ == "__main__":
 
@@ -32,6 +34,15 @@ if __name__ == "__main__":
         print ("Failed to create FIFO: %s" % e)
         sys.exit()
     else:
+        
+        # Opening a client socket
+        
+        host = socket.gethostname()
+        port = 5000
+
+        client_socket = socket.socket()
+        client_socket.connect((host, port))
+            
         while True:
 
             with open(path, "w") as fifo:
@@ -60,9 +71,20 @@ if __name__ == "__main__":
             except ProcessLookupError as e:
                 print ("Failed to pause process: %s" % e)
 
-            kill_process = input("Do you want to kill the process(y/n)?")
+            # START OF COUNTERMEASURE
 
-            if (kill_process == "y"):
+            # Request the server to
+            # send the average of the
+            # queue entries.
+
+            client_socket.send("req".encode())
+            queue_average = client_socket.recv(3).decode()  # 3 because length of "req" is 3 -> so 3 bytes.
+
+            print(f"Queue Average = {queue_average}")
+    
+            # kill_process = input("Do you want to kill the process(y/n)?")
+
+            if (queue_average == "1"):
                 try:
                     #Resuming the process
                     #command = subprocess.run([f"kill -CONT {pid_process}"], shell=True)
