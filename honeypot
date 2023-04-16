@@ -110,5 +110,3 @@ if __name__ == "__main__":
 
             # create new named pipe with same name so that symlinks are preserved
             os.mkfifo(path, mode)
-
-
