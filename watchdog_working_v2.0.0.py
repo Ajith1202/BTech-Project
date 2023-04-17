@@ -11,15 +11,16 @@ import socket
 from collections import deque
 
 
-def calc_queue_average():
+def calc_queue_average(global_queue):
     s = 0
 
-    for item in global_queue:
+    for item in global_queue:   # wrong statement, doesn't work!!
         s += item
 
+    print("[+] QUEUE TOTAL: ", s)
     return 1 if s > 0 else -1
 
-def server_connection():
+def server_connection(global_queue, queue_total):
     
     host = socket.gethostname()
     port = 5000
@@ -38,9 +39,11 @@ def server_connection():
             break
 
         if data == "req":
-            queue_average = calc_queue_average()
             #print(global_queue)
-            conn.send(str(queue_average).encode())
+            if queue_total.value > 0:
+                conn.send("1".encode())
+            else:
+                conn.send("-1".encode())
         else:
             conn.send("5".encode())
 
@@ -48,7 +51,10 @@ def server_connection():
 
 def insert_into_queue(val):
 
-    global_queue.append(val)
+    x = global_queue.get(block=False)
+    queue_total.value -= x
+    global_queue.put(val, block=False)
+    queue_total.value += val
     
 def debounce(interval):
     def decorator(f):
@@ -242,7 +248,13 @@ if __name__ == "__main__":
     database = calc_chisquare()
     
     k = 20
-    global_queue = deque([0] * k, maxlen=k)
+    global_queue = multiprocessing.Queue(maxsize=20)    
+    #deque([0] * k, maxlen=k)
+    for i in range(20):
+        global_queue.put(0)
+
+    queue_total = multiprocessing.Value('i')
+    queue_total.value = 0
 
     event_handler = MyHandler()
     # Exclude hidden folders using the ignore_patterns parameter
@@ -252,7 +264,7 @@ if __name__ == "__main__":
     print("Monitoring started.")
     observer.start()
 
-    p = multiprocessing.Process(target=server_connection)
+    p = multiprocessing.Process(target=server_connection, args=(global_queue, queue_total,))
     p.start()
 
     try:
