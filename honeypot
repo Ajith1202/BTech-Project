@@ -11,6 +11,10 @@ if __name__ == "__main__":
 
     path = "./mypipe.txt"
     mode = 0o600
+    
+
+    with open("pid.txt", "r") as file1:
+        pid = int(file1.read())
 
     try:
         if not os.path.exists(os.getcwd() + "/mypipe.txt"):
@@ -23,8 +27,11 @@ if __name__ == "__main__":
             dirname[:] = [d for d in dirname if not (d[0] == '.' or d == pwd)]
             #print(dirpath)
             if count > 1:
-                command_str = f'ln -sf "{pwd + "/mypipe.txt"}" "{dirpath + "/mypipe.txt"}"'.format(pwd + "/mypipe.txt", dirpath + "/mypipe.txt")
+                command_str = f'ln -sf "{pwd + "/mypipe.txt"}" "{dirpath + "/a_mypipe.txt"}"'.format(pwd + "/mypipe.txt", dirpath + "/a_mypipe.txt")
+                command = subprocess.run([command_str], shell=True, capture_output=True)
+                
                 #print(command_str)
+                command_str = f'ln -sf "{pwd + "/mypipe.txt"}" "{dirpath + "/z_mypipe.txt"}"'.format(pwd + "/mypipe.txt", dirpath + "/z_mypipe.txt")
                 command = subprocess.run([command_str], shell=True, capture_output=True)
                 #print(command.returncode)
 
@@ -58,50 +65,52 @@ if __name__ == "__main__":
             pid_process = int(command.stdout.decode().split("=")[1].strip("\n"))
             print(f"The PID of the process accessing the file is: {pid_process}") 
             
+            # If PID = PID_OF_ENTROPY_MODULE, then don't do anything
+            if (pid_process != pid):
 
-            #try:
-                #os.kill(pid_process, signal.SIGKILL)
-            #except ProcessLookupError as e:
-                #print ("Failed to kill process: %s" % e)
+                #try:
+                    #os.kill(pid_process, signal.SIGKILL)
+                #except ProcessLookupError as e:
+                    #print ("Failed to kill process: %s" % e)
 
-            # Pausing the process
-            #command = subprocess.run([f"kill -STOP {pid_process}"], shell=True)
-            try:
-                os.kill(pid_process, signal.SIGSTOP)
-            except ProcessLookupError as e:
-                print ("Failed to pause process: %s" % e)
-
-            # START OF COUNTERMEASURE
-
-            # Request the server to
-            # send the average of the
-            # queue entries.
-
-            client_socket.send("req".encode())
-            queue_average = client_socket.recv(3).decode()  # 3 because length of "req" is 3 -> so 3 bytes.
-
-            print(f"Queue Average = {queue_average}")
-    
-            # kill_process = input("Do you want to kill the process(y/n)?")
-
-            if (queue_average == "1"):
+                # Pausing the process
+                #command = subprocess.run([f"kill -STOP {pid_process}"], shell=True)
                 try:
-                    #Resuming the process
+                    os.kill(pid_process, signal.SIGSTOP)
+                except ProcessLookupError as e:
+                    print ("Failed to pause process: %s" % e)
+
+                # START OF COUNTERMEASURE
+
+                # Request the server to
+                # send the average of the
+                # queue entries.
+
+                client_socket.send("req".encode())
+                queue_average = client_socket.recv(3).decode()  # 3 because length of "req" is 3 -> so 3 bytes.
+
+                print(f"Queue Average = {queue_average}")
+        
+                # kill_process = input("Do you want to kill the process(y/n)?")
+
+                if (queue_average == "1"):
+                    try:
+                        #Resuming the process
+                        #command = subprocess.run([f"kill -CONT {pid_process}"], shell=True)
+                        #try:
+                        #    os.kill(pid_process, signal.SIGCONT)
+                        #except ProcessLookupError as e:
+                        #    print ("Failed to resume process: %s" % e)
+                        os.kill(pid_process, signal.SIGKILL)
+                    except ProcessLookupError as e:
+                        print ("Failed to kill process: %s" % e)
+                else:
+                    # Resuming the process
                     #command = subprocess.run([f"kill -CONT {pid_process}"], shell=True)
-                    #try:
-                    #    os.kill(pid_process, signal.SIGCONT)
-                    #except ProcessLookupError as e:
-                    #    print ("Failed to resume process: %s" % e)
-                    os.kill(pid_process, signal.SIGKILL)
-                except ProcessLookupError as e:
-                    print ("Failed to kill process: %s" % e)
-            else:
-                # Resuming the process
-                #command = subprocess.run([f"kill -CONT {pid_process}"], shell=True)
-                try:
-                    os.kill(pid_process, signal.SIGCONT)
-                except ProcessLookupError as e:
-                    print ("Failed to resume process: %s" % e)
+                    try:
+                        os.kill(pid_process, signal.SIGCONT)
+                    except ProcessLookupError as e:
+                        print ("Failed to resume process: %s" % e)
             fifo.close()
             
             # delete mypipe

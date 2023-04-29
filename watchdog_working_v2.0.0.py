@@ -82,7 +82,7 @@ class MyHandler(FileSystemEventHandler):
         #print(event.event_type, event.src_path)
     
     def on_created(self, event):
-        if event.src_path[-11:] != "/mypipe.txt" and not event.src_path.startswith("./."):
+        if event.src_path[-10:] != "mypipe.txt" and not event.src_path.startswith("./."):
                 if not event.is_directory:
                     #print(f"TEST: {event.src_path}")
                     #if os.stat(event.src_path).st_size == 0:
@@ -122,7 +122,7 @@ class MyHandler(FileSystemEventHandler):
             return
         
         if event.event_type == "closed" and not event.is_directory:
-            if event.src_path[-11:] != "/mypipe.txt" and not event.src_path.startswith("./."):
+            if event.src_path[-10:] != "mypipe.txt" and not event.src_path.startswith("./."):
                 if not event.is_directory:
                     #time.sleep(1)
                     chi_sq = chisquare(event.src_path)
@@ -152,7 +152,7 @@ class MyHandler(FileSystemEventHandler):
             
 
     def on_deleted(self, event):
-        if event.src_path[-11:] != "/mypipe.txt" and not event.src_path.startswith("./."):
+        if event.src_path[-10:] != "mypipe.txt" and not event.src_path.startswith("./."):
             try:
                 del database[event.src_path]
             except KeyError as e:
@@ -232,7 +232,7 @@ def calc_chisquare():
         dirs[:] = [d for d in dirs if not d[0] == '.']
         
         for name in files:
-            if name == "mypipe.txt":
+            if name[-10:] == "mypipe.txt":
                 #print("EXXXXX")
                 continue
             
@@ -244,6 +244,15 @@ def calc_chisquare():
     return db
 
 if __name__ == "__main__":
+
+    pid = os.getpid()
+	
+    with open("pid.txt", "w") as file1:
+        file1.write(str(pid))
+    #print(read_content)
+	
+	
+	
     #src_path = sys.argv[1]
     database = calc_chisquare()
     
