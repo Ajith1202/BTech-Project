@@ -5,6 +5,7 @@ import subprocess
 import signal
 import sys
 import socket
+import time
 
 
 if __name__ == "__main__":
@@ -86,8 +87,8 @@ if __name__ == "__main__":
                 # send the average of the
                 # queue entries.
 
-                client_socket.send("req".encode())
-                queue_average = client_socket.recv(3).decode()  # 3 because length of "req" is 3 -> so 3 bytes.
+                client_socket.send(f"req {str(int(time.time()))}".encode())
+                queue_average = client_socket.recv(1024).decode()  # 3 because length of "req" is 3 -> so 3 bytes.
 
                 print(f"Queue Average = {queue_average}")
         

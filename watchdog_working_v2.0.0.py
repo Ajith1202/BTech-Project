@@ -1,15 +1,14 @@
 import os
-import sys
+#import sys
 import time
 import threading
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, EVENT_TYPE_MODIFIED, EVENT_TYPE_CREATED
+from watchdog.events import FileSystemEventHandler
 
 import multiprocessing
 import socket
 
-from collections import deque
-
+timestamp_last_encryption = 0
 
 def calc_queue_average(global_queue):
     s = 0
@@ -20,8 +19,18 @@ def calc_queue_average(global_queue):
     print("[+] QUEUE TOTAL: ", s)
     return 1 if s > 0 else -1
 
-def server_connection(global_queue, queue_total):
-    
+def delta_access_time_last_encryption(access_time, last_enc_time):
+
+    if last_enc_time != 0:
+        if access_time - last_enc_time >= 10:
+            return False    # User process
+        else:
+            return True     # Malicious process
+    else:
+        return False    # User process
+
+def server_connection(global_queue, queue_total, timestamp_last_encryption):
+
     host = socket.gethostname()
     port = 5000
 
@@ -33,14 +42,16 @@ def server_connection(global_queue, queue_total):
 
     while True:
 
-        data = conn.recv(3).decode()
+        data = conn.recv(1024).decode()
+        req, timestamp_access = data.split()
+        print(f"[+] TIMESTAMP_ACCESS: {timestamp_access}")
+        print(f"[+] TIMESTAMP_LAST_ENCRYPTION: {timestamp_last_encryption.value}")
 
         if not data:
             break
 
-        if data == "req":
-            #print(global_queue)
-            if queue_total.value > 0:
+        if req == "req":
+            if queue_total.value > 0 and delta_access_time_last_encryption(int(timestamp_access), timestamp_last_encryption.value):
                 conn.send("1".encode())
             else:
                 conn.send("-1".encode())
@@ -82,6 +93,7 @@ class MyHandler(FileSystemEventHandler):
         #print(event.event_type, event.src_path)
     
     def on_created(self, event):
+
         if event.src_path[-10:] != "mypipe.txt" and not event.src_path.startswith("./."):
                 if not event.is_directory:
                     #print(f"TEST: {event.src_path}")
@@ -92,7 +104,7 @@ class MyHandler(FileSystemEventHandler):
                         #print(f"TEST1: {event.is_directory}")
 
                         chi_sq = chisquare(event.src_path)
-                        database[event.src_path] = chi_sq
+                        #database[event.src_path] = chi_sq
                     #print(chi_sq)
                         
                         if chi_sq != 0:
@@ -102,11 +114,12 @@ class MyHandler(FileSystemEventHandler):
                             insert_into_queue(-1)
                             print(f"[+] CREATED QUEUE NE : {global_queue}")
                         else:
-                        	if chi_sq != 0:
-                        		insert_into_queue(1)
-                        		print(f"[+] CREATED QUEUE E : {global_queue}")
-                        	else:
-                        		print("[+] CHI_SQ CREATED = 0")
+                            if chi_sq != 0:
+                                timestamp_last_encryption.value = int(time.time())
+                                insert_into_queue(1)
+                                print(f"[+] CREATED QUEUE E : {global_queue}")
+                            else:
+                                print("[+] CHI_SQ CREATED = 0")
     
                 #print(database)
                         print("[+] CREATED", event.src_path)
@@ -114,6 +127,7 @@ class MyHandler(FileSystemEventHandler):
     
     #@debounce(1)
     def on_any_event(self, event):
+
         if event.src_path.startswith("./."):
             # Handle file system event here
             return
@@ -126,7 +140,7 @@ class MyHandler(FileSystemEventHandler):
                 if not event.is_directory:
                     #time.sleep(1)
                     chi_sq = chisquare(event.src_path)
-                    database[event.src_path] = chi_sq
+                    #database[event.src_path] = chi_sq
                     #print(chi_sq)
 
                     # check if the file was also created
@@ -139,11 +153,12 @@ class MyHandler(FileSystemEventHandler):
                         insert_into_queue(-1)
                         print(f"[+] MODIFIED QUEUE NE : {global_queue}")
                     else:
-                    	if chi_sq != 0:
-                    		insert_into_queue(1)
-                    		print(f"[+] MODIFIED QUEUE E : {global_queue}")
-                    	else:
-                    		print("[+] CHI_SQ MODIFIED = 0")
+                        if chi_sq != 0:
+                            timestamp_last_encryption.value = int(time.time())
+                            insert_into_queue(1)
+                            print(f"[+] MODIFIED QUEUE E : {global_queue}")
+                        else:
+                            print("[+] CHI_SQ MODIFIED = 0")
 
                     #print(database)
                     print("[+] MODIFIED", event.src_path)
@@ -153,10 +168,10 @@ class MyHandler(FileSystemEventHandler):
 
     def on_deleted(self, event):
         if event.src_path[-10:] != "mypipe.txt" and not event.src_path.startswith("./."):
-            try:
-                del database[event.src_path]
-            except KeyError as e:
-                print(e)
+            #try:
+            #    del database[event.src_path]
+            #except KeyError as e:
+            #    print(e)
 
             #print(database)
             print("[+] DELETED", event.src_path)
@@ -246,16 +261,17 @@ def calc_chisquare():
 if __name__ == "__main__":
 
     pid = os.getpid()
-	
+    
     with open("pid.txt", "w") as file1:
         file1.write(str(pid))
     #print(read_content)
-	
-	
-	
-    #src_path = sys.argv[1]
-    database = calc_chisquare()
     
+    
+    
+    # src_path = sys.argv[1]
+    # database = calc_chisquare()
+    #database = {}
+
     k = 20
     global_queue = multiprocessing.Queue(maxsize=20)    
     #deque([0] * k, maxlen=k)
@@ -265,6 +281,9 @@ if __name__ == "__main__":
     queue_total = multiprocessing.Value('i')
     queue_total.value = 0
 
+    timestamp_last_encryption = multiprocessing.Value('i')
+    timestamp_last_encryption.value = 0
+
     event_handler = MyHandler()
     # Exclude hidden folders using the ignore_patterns parameter
     # ignore_patterns = ["*/.*"]
@@ -273,7 +292,7 @@ if __name__ == "__main__":
     print("Monitoring started.")
     observer.start()
 
-    p = multiprocessing.Process(target=server_connection, args=(global_queue, queue_total,))
+    p = multiprocessing.Process(target=server_connection, args=(global_queue, queue_total, timestamp_last_encryption,))
     p.start()
 
     try:
