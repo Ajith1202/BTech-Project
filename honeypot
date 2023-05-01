@@ -15,7 +15,9 @@ if __name__ == "__main__":
     
 
     with open("pid.txt", "r") as file1:
-        pid = int(file1.read())
+        pid_entropy = int(file1.read())
+
+    pid_honeypot = os.getpid()
 
     try:
         if not os.path.exists(os.getcwd() + "/mypipe.txt"):
@@ -66,8 +68,8 @@ if __name__ == "__main__":
             pid_process = int(command.stdout.decode().split("=")[1].strip("\n"))
             print(f"The PID of the process accessing the file is: {pid_process}") 
             
-            # If PID = PID_OF_ENTROPY_MODULE, then don't do anything
-            if (pid_process != pid):
+            # If PID = PID_OF_ENTROPY_MODULE OR PID_OF_HONEYPOT, then don't do anything
+            if (pid_process != pid_entropy) and (pid_process != pid_honeypot):
 
                 #try:
                     #os.kill(pid_process, signal.SIGKILL)
